@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; color: #1f2937; }
+    header { background: #1e3a5f; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+    header a { color: #fff; margin-left: 16px; text-decoration: none; }
+    main { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .card h3 { margin: 0 0 8px; font-size: 14px; color: #6b7280; }
+    .card p { margin: 0; font-size: 28px; font-weight: bold; }
+    .panel { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; }
+    th { color: #6b7280; font-size: 13px; }
+    .low { color: #b91c1c; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Business Dashboard</strong>
+    <nav>
+      <a href="/admin/inventory/product/">Products</a>
+      <a href="/admin/inventory/sale/add/">New sale</a>
+      <a href="/admin/">Admin</a>
+    </nav>
+  </header>
+  <main>
+    <div class="cards">
+      <div class="card"><h3>Sales today</h3><p>{{ sales_count }}</p></div>
+      <div class="card"><h3>Revenue today</h3><p>{{ total_today }} ETB</p></div>
+      <div class="card"><h3>Total products</h3><p>{{ product_count }}</p></div>
+      <div class="card"><h3>Low stock items</h3><p class="{% if low_stock %}low{% endif %}">{{ low_stock|length }}</p></div>
+    </div>
+
+    <div class="panel">
+      <h2>Today's sales ({{ today }})</h2>
+      <table>
+        <tr><th>Product</th><th>Quantity</th><th>Total</th><th>Time</th></tr>
+        {% for sale in todays_sales %}
+        <tr>
+          <td>{{ sale.product.name }}</td>
+          <td>{{ sale.quantity }}</td>
+          <td>{{ sale.total_price }}</td>
+          <td>{{ sale.sold_at|time:"H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">No sales yet today.</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Low stock products</h2>
+      <table>
+        <tr><th>Product</th><th>SKU</th><th>In stock</th><th>Alert level</th></tr>
+        {% for p in low_stock %}
+        <tr>
+          <td>{{ p.name }}</td>
+          <td>{{ p.sku }}</td>
+          <td class="low">{{ p.quantity }}</td>
+          <td>{{ p.low_stock_level }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">All products are well stocked.</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  </main>
+</body>
+</html>
