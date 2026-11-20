@@ -1,0 +1,25 @@
+{% extends "inventory/base.html" %}
+{% block title %}Products{% endblock %}
+{% block content %}
+<div class="panel">
+  <h2>Products</h2>
+  <form class="searchbar" method="get">
+    <input type="search" name="q" value="{{ query }}" placeholder="Search by name or SKU">
+    <button class="btn" type="submit">Search</button>
+  </form>
+  <table>
+    <tr><th>Name</th><th>SKU</th><th>Price (ETB)</th><th>In stock</th><th>Status</th></tr>
+    {% for p in products %}
+    <tr>
+      <td>{{ p.name }}</td>
+      <td>{{ p.sku }}</td>
+      <td>{{ p.price }}</td>
+      <td class="{% if p.is_low_stock %}low{% endif %}">{{ p.quantity }}</td>
+      <td>{% if p.is_low_stock %}<span class="low">Low stock</span>{% else %}OK{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5">No products found.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

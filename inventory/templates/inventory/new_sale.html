@@ -1,0 +1,18 @@
+{% extends "inventory/base.html" %}
+{% block title %}New sale{% endblock %}
+{% block content %}
+<div class="panel narrow">
+  <h2>Record a sale</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <label for="{{ form.product.id_for_label }}">Product</label>
+    {{ form.product }}
+    {{ form.product.errors }}
+    <label for="{{ form.quantity.id_for_label }}">Quantity</label>
+    {{ form.quantity }}
+    {{ form.quantity.errors }}
+    <button class="btn" type="submit">Save sale</button>
+  </form>
+</div>
+{% endblock %}

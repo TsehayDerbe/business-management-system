@@ -1,0 +1,17 @@
+{% extends "inventory/base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<div class="panel narrow">
+  <h2>Log in</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <label for="{{ form.username.id_for_label }}">Username</label>
+    {{ form.username }}
+    <label for="{{ form.password.id_for_label }}">Password</label>
+    {{ form.password }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="btn" type="submit">Log in</button>
+  </form>
+</div>
+{% endblock %}
