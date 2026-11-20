@@ -2,13 +2,21 @@
 {% block title %}Products{% endblock %}
 {% block content %}
 <div class="panel">
-  <h2>Products</h2>
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <h2>Products</h2>
+    {% if is_manager %}
+      <a class="btn" style="text-decoration:none;margin-top:0;" href="{% url 'product_create' %}">+ Add product</a>
+    {% endif %}
+  </div>
   <form class="searchbar" method="get">
     <input type="search" name="q" value="{{ query }}" placeholder="Search by name or SKU">
     <button class="btn" type="submit">Search</button>
   </form>
   <table>
-    <tr><th>Name</th><th>SKU</th><th>Price (ETB)</th><th>In stock</th><th>Status</th></tr>
+    <tr>
+      <th>Name</th><th>SKU</th><th>Price (ETB)</th><th>In stock</th><th>Status</th>
+      {% if is_manager %}<th></th>{% endif %}
+    </tr>
     {% for p in products %}
     <tr>
       <td>{{ p.name }}</td>
@@ -16,9 +24,10 @@
       <td>{{ p.price }}</td>
       <td class="{% if p.is_low_stock %}low{% endif %}">{{ p.quantity }}</td>
       <td>{% if p.is_low_stock %}<span class="low">Low stock</span>{% else %}OK{% endif %}</td>
+      {% if is_manager %}<td><a href="{% url 'product_edit' p.pk %}">Edit</a></td>{% endif %}
     </tr>
     {% empty %}
-    <tr><td colspan="5">No products found.</td></tr>
+    <tr><td colspan="6">No products found.</td></tr>
     {% endfor %}
   </table>
 </div>

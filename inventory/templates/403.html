@@ -1,0 +1,9 @@
+{% extends "inventory/base.html" %}
+{% block title %}Not allowed{% endblock %}
+{% block content %}
+<div class="panel narrow">
+  <h2>Access denied</h2>
+  <p>You don't have permission to do that. Please ask a manager.</p>
+  <p><a href="{% url 'dashboard' %}">Back to the dashboard</a></p>
+</div>
+{% endblock %}

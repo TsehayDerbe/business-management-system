@@ -9,7 +9,7 @@
 </div>
 
 <div class="panel">
-  <h2>Today's sales ({{ today }})</h2>
+   <h2>{% if is_manager %}Today's sales{% else %}Your sales today{% endif %} ({{ today }})</h2>
   <table>
     <tr><th>Product</th><th>Quantity</th><th>Total</th><th>Time</th></tr>
     {% for sale in todays_sales %}

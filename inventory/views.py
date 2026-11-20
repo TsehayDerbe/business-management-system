@@ -1,17 +1,20 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import F, Q, Sum
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .forms import SaleForm
+from .forms import ProductForm, SaleForm
 from .models import Product, Sale
+from .permissions import is_manager, manager_required
 
 
 @login_required
 def dashboard(request):
     today = timezone.localdate()
     todays_sales = Sale.objects.filter(sold_at__date=today).select_related("product")
+    if not is_manager(request.user):
+        todays_sales = todays_sales.filter(sold_by=request.user)
     total_today = todays_sales.aggregate(total=Sum("total_price"))["total"] or 0
     low_stock = Product.objects.filter(quantity__lte=F("low_stock_level"))
 
@@ -54,4 +57,31 @@ def product_list(request):
         request,
         "inventory/products.html",
         {"products": products, "query": query},
+    )
+
+
+@manager_required
+def product_create(request):
+    form = ProductForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        product = form.save()
+        messages.success(request, f"Product added: {product.name}")
+        return redirect("products")
+    return render(
+        request, "inventory/product_form.html", {"form": form, "title": "Add product"}
+    )
+
+
+@manager_required
+def product_edit(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+    form = ProductForm(request.POST or None, instance=product)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, f"Product updated: {product.name}")
+        return redirect("products")
+    return render(
+        request,
+        "inventory/product_form.html",
+        {"form": form, "title": f"Edit {product.name}"},
     )
