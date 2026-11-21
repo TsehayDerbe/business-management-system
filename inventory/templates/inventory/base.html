@@ -40,6 +40,7 @@
         <a href="{% url 'dashboard' %}">Dashboard</a>
         <a href="{% url 'products' %}">Products</a>
         <a href="{% url 'new_sale' %}">New sale</a>
+                {% if is_manager %}<a href="{% url 'reports' %}">Reports</a>{% endif %}
         {% if user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
         <span class="user">{{ user.username }}</span>
         <form method="post" action="{% url 'logout' %}">
