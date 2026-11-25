@@ -1,43 +1,68 @@
 {% extends "inventory/base.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
+<h2 style="margin-top:0;">{{ scope }} <span class="muted">· {{ today }}</span></h2>
+
 <div class="cards">
-  <div class="card"><h3>Sales today</h3><p>{{ sales_count }}</p></div>
-  <div class="card"><h3>Revenue today</h3><p>{{ total_today }} ETB</p></div>
-  <div class="card"><h3>Total products</h3><p>{{ product_count }}</p></div>
+  <div class="card"><h3>Sales today</h3><p>{{ totals.count }}</p></div>
+  <div class="card"><h3>Revenue today (ETB)</h3><p>{{ totals.revenue|default_if_none:0|floatformat:2 }}</p></div>
+  <div class="card"><h3>Units sold</h3><p>{{ totals.units|default_if_none:0 }}</p></div>
   <div class="card"><h3>Low stock items</h3><p class="{% if low_stock %}low{% endif %}">{{ low_stock|length }}</p></div>
+  <div class="card"><h3>Transfers in transit</h3><p>{{ in_transit }}</p></div>
+  <div class="card"><h3>Discrepancies</h3><p class="{% if discrepancies %}low{% endif %}">{{ discrepancies }}</p></div>
 </div>
 
+{% if is_head_office %}
 <div class="panel">
-   <h2>{% if is_manager %}Today's sales{% else %}Your sales today{% endif %} ({{ today }})</h2>
+  <h2 style="margin-top:0;">Shops today</h2>
   <table>
-    <tr><th>Product</th><th>Quantity</th><th>Total</th><th>Time</th></tr>
-    {% for sale in todays_sales %}
+    <tr><th>Shop</th><th>City</th><th>Sales</th><th>Revenue (ETB)</th></tr>
+    {% for row in shop_rows %}
     <tr>
+      <td>{{ row.name }}</td>
+      <td>{{ row.city }}</td>
+      <td>{{ row.sales_count }}</td>
+      <td>{{ row.revenue|default_if_none:0|floatformat:2 }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4">No shops yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2 style="margin-top:0;">Today's sales</h2>
+  <table>
+    <tr><th>Time</th><th>Shop</th><th>Product</th><th>Qty</th><th>Total</th><th>Invoice</th></tr>
+    {% for sale in recent_sales %}
+    <tr>
+      <td>{{ sale.sold_at|time:"H:i" }}</td>
+      <td>{{ sale.location.name }}</td>
       <td>{{ sale.product.name }}</td>
       <td>{{ sale.quantity }}</td>
       <td>{{ sale.total_price }}</td>
-      <td>{{ sale.sold_at|time:"H:i" }}</td>
+      <td><a href="{% url 'sale_invoice' sale.pk %}" target="_blank">PDF</a></td>
     </tr>
     {% empty %}
-    <tr><td colspan="4">No sales yet today.</td></tr>
+    <tr><td colspan="6">No sales yet today.</td></tr>
     {% endfor %}
   </table>
 </div>
 
 <div class="panel">
-  <h2>Low stock products</h2>
+  <h2 style="margin-top:0;">Low stock</h2>
   <table>
-    <tr><th>Product</th><th>SKU</th><th>In stock</th><th>Alert level</th></tr>
-    {% for p in low_stock %}
+    <tr><th>Location</th><th>Product</th><th>In stock</th><th>Alert level</th></tr>
+    {% for level in low_stock %}
     <tr>
-      <td>{{ p.name }}</td>
-      <td>{{ p.sku }}</td>
-      <td class="low">{{ p.quantity }}</td>
-      <td>{{ p.low_stock_level }}</td>
+      <td>{{ level.location.name }}</td>
+      <td>{{ level.product.name }}</td>
+      <td class="low">{{ level.quantity }}</td>
+      <td>{{ level.product.low_stock_level }}</td>
     </tr>
     {% empty %}
-    <tr><td colspan="4">All products are well stocked.</td></tr>
+    <tr><td colspan="4">Everything is well stocked.</td></tr>
     {% endfor %}
   </table>
 </div>

@@ -1,0 +1,34 @@
+{% extends "inventory/base.html" %}
+{% block title %}New transfer{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:700px;">
+  <h2 style="margin-top:0;">New stock transfer</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {{ field.errors }}
+    {% endfor %}
+
+    <h3>Items</h3>
+    {{ formset.management_form }}
+    {{ formset.non_form_errors }}
+    <table>
+      <tr><th>Product</th><th>Quantity to send</th></tr>
+      {% for item_form in formset %}
+      <tr>
+        <td>
+          {% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}
+          {{ item_form.product }}{{ item_form.product.errors }}{{ item_form.non_field_errors }}
+        </td>
+        <td>{{ item_form.quantity_sent }}{{ item_form.quantity_sent.errors }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p class="muted">Leave unused rows empty. The transfer is saved as a draft, and stock moves only when you dispatch it.</p>
+    <button class="btn" type="submit">Save draft</button>
+  </form>
+</div>
+{% endblock %}

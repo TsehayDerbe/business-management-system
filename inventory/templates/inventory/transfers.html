@@ -1,0 +1,39 @@
+{% extends "inventory/base.html" %}
+{% block title %}Transfers{% endblock %}
+{% block content %}
+<div class="panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+    <h2 style="margin:0;">Stock transfers</h2>
+    {% if can_manage_stock %}
+      <a class="btn" style="margin-top:0;" href="{% url 'transfer_create' %}">+ New transfer</a>
+    {% endif %}
+  </div>
+  <form method="get" class="searchbar" style="margin-top:16px;">
+    <select name="status">
+      <option value="">All statuses</option>
+      {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn" type="submit">Filter</button>
+  </form>
+  <table>
+    <tr>
+      <th>Reference</th><th>From</th><th>To</th><th>Status</th>
+      <th>Dispatched</th><th>Received</th>
+    </tr>
+    {% for t in transfers %}
+    <tr>
+      <td><a href="{% url 'transfer_detail' t.pk %}">{{ t.reference }}</a></td>
+      <td>{{ t.from_location.name }}</td>
+      <td>{{ t.to_location.name }}</td>
+      <td class="{% if t.status == 'DISCREPANCY' %}low{% endif %}">{{ t.get_status_display }}</td>
+      <td>{{ t.dispatched_at|date:"Y-m-d H:i"|default:"-" }}</td>
+      <td>{{ t.received_at|date:"Y-m-d H:i"|default:"-" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6">No transfers found.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

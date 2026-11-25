@@ -1,0 +1,60 @@
+{% extends "inventory/base.html" %}
+{% block title %}{{ transfer.reference }}{% endblock %}
+{% block content %}
+<div class="panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+    <h2 style="margin:0;">{{ transfer.reference }} <span class="muted">· {{ transfer.get_status_display }}</span></h2>
+    <a href="{% url 'transfers' %}">&larr; All transfers</a>
+  </div>
+  <p>
+    <strong>From:</strong> {{ transfer.from_location.name }}<br>
+    <strong>To:</strong> {{ transfer.to_location.name }}<br>
+    <strong>Created:</strong> {{ transfer.created_at|date:"Y-m-d H:i" }}{% if transfer.created_by %} by {{ transfer.created_by.username }}{% endif %}<br>
+    {% if transfer.dispatched_at %}<strong>Dispatched:</strong> {{ transfer.dispatched_at|date:"Y-m-d H:i" }}<br>{% endif %}
+    {% if transfer.received_at %}<strong>Received:</strong> {{ transfer.received_at|date:"Y-m-d H:i" }}{% if transfer.received_by %} by {{ transfer.received_by.username }}{% endif %}<br>{% endif %}
+    {% if transfer.note %}<strong>Note:</strong> {{ transfer.note }}{% endif %}
+  </p>
+
+  {% if transfer.status == "DISCREPANCY" %}
+  <div style="background:#fee2e2;color:#991b1b;padding:12px 16px;border-radius:8px;margin-bottom:16px;">
+    The received quantities do not match what was sent. Head office should investigate the difference.
+  </div>
+  {% endif %}
+
+  {% if can_receive %}
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="receive">
+  {% endif %}
+  <table>
+    <tr><th>Product</th><th>Sent</th><th>Received</th><th>Difference</th></tr>
+    {% for item in items %}
+    <tr>
+      <td>{{ item.product.name }}</td>
+      <td>{{ item.quantity_sent }}</td>
+      <td>
+        {% if can_receive %}
+          <input type="number" name="received_{{ item.pk }}" min="0" max="{{ item.quantity_sent }}" required style="width:140px;">
+        {% else %}
+          {{ item.quantity_received|default_if_none:"-" }}
+        {% endif %}
+      </td>
+      <td class="{% if item.difference %}low{% endif %}">{{ item.difference|default_if_none:"-" }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% if can_receive %}
+    <p class="muted">Count what physically arrived and enter it for every item.</p>
+    <button class="btn" type="submit">Confirm receipt</button>
+  </form>
+  {% endif %}
+
+  {% if can_dispatch %}
+  <form method="post" onsubmit="return confirm('Dispatch this transfer? Stock will leave {{ transfer.from_location.name|escapejs }} now.');">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="dispatch">
+    <button class="btn" type="submit">Dispatch</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
