@@ -6,7 +6,7 @@ from .models import Product, Sale
 class SaleForm(forms.ModelForm):
     class Meta:
         model = Sale
-        fields = ["product", "quantity"]
+        fields = ["location", "product", "quantity", "payment_method", "receipt_number"]
 
     def clean_quantity(self):
         quantity = self.cleaned_data["quantity"]
@@ -18,4 +18,4 @@ class SaleForm(forms.ModelForm):
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ["name", "sku", "price", "quantity", "low_stock_level"]
+        fields = ["name", "sku", "category", "price", "low_stock_level"]
