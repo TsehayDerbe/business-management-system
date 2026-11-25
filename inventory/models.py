@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -227,3 +228,123 @@ class Sale(models.Model):
 
     def __str__(self):
         return f"{self.quantity} x {self.product.name} @ {self.location.name}"
+    
+
+class StockTransfer(models.Model):
+    DRAFT = "DRAFT"
+    DISPATCHED = "DISPATCHED"
+    RECEIVED = "RECEIVED"
+    DISCREPANCY = "DISCREPANCY"
+    STATUS_CHOICES = [
+        (DRAFT, "Draft"),
+        (DISPATCHED, "Dispatched (in transit)"),
+        (RECEIVED, "Received"),
+        (DISCREPANCY, "Received with discrepancy"),
+    ]
+
+    reference = models.CharField(max_length=20, blank=True, editable=False)
+    from_location = models.ForeignKey(
+        Location, on_delete=models.PROTECT, related_name="transfers_out"
+    )
+    to_location = models.ForeignKey(
+        Location, on_delete=models.PROTECT, related_name="transfers_in"
+    )
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=DRAFT)
+    note = models.CharField(max_length=255, blank=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    dispatched_at = models.DateTimeField(null=True, blank=True)
+    received_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    received_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def clean(self):
+        if self.from_location_id and self.from_location_id == self.to_location_id:
+            raise ValidationError("Source and destination must be different.")
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.reference:
+            self.reference = f"TR-{self.pk:05d}"
+            super().save(update_fields=["reference"])
+
+    @transaction.atomic
+    def dispatch(self, user):
+        if self.status != self.DRAFT:
+            raise ValueError("Only draft transfers can be dispatched.")
+        items = list(self.items.select_related("product"))
+        if not items:
+            raise ValueError("Add at least one item first.")
+        for item in items:
+            apply_stock_change(
+                item.product,
+                self.from_location,
+                -item.quantity_sent,
+                StockMovement.TRANSFER_OUT,
+                user=user,
+                reference=self.reference,
+                note=f"To {self.to_location.name}",
+            )
+        self.status = self.DISPATCHED
+        self.dispatched_at = timezone.now()
+        self.save(update_fields=["status", "dispatched_at"])
+
+    @transaction.atomic
+    def receive(self, user):
+        if self.status != self.DISPATCHED:
+            raise ValueError("Only dispatched transfers can be received.")
+        items = list(self.items.select_related("product"))
+        if any(item.quantity_received is None for item in items):
+            raise ValueError("Enter the received quantity for every item first.")
+        has_difference = False
+        for item in items:
+            if item.quantity_received > item.quantity_sent:
+                raise ValueError(
+                    f"{item.product.name}: received more than was sent."
+                )
+            if item.quantity_received:
+                apply_stock_change(
+                    item.product,
+                    self.to_location,
+                    item.quantity_received,
+                    StockMovement.TRANSFER_IN,
+                    user=user,
+                    reference=self.reference,
+                    note=f"From {self.from_location.name}",
+                )
+            if item.quantity_received != item.quantity_sent:
+                has_difference = True
+        self.status = self.DISCREPANCY if has_difference else self.RECEIVED
+        self.received_by = user
+        self.received_at = timezone.now()
+        self.save(update_fields=["status", "received_by", "received_at"])
+
+    def __str__(self):
+        return f"{self.reference or 'New transfer'}: {self.from_location} to {self.to_location}"
+
+
+class TransferItem(models.Model):
+    transfer = models.ForeignKey(
+        StockTransfer, on_delete=models.CASCADE, related_name="items"
+    )
+    product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    quantity_sent = models.PositiveIntegerField()
+    quantity_received = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("transfer", "product")
+
+    @property
+    def difference(self):
+        if self.quantity_received is None:
+            return None
+        return self.quantity_sent - self.quantity_received
+
+    def __str__(self):
+        return f"{self.product.name}: {self.quantity_sent}"

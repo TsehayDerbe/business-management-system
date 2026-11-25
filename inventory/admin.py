@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 
 from .models import (
     Location,
@@ -7,6 +7,8 @@ from .models import (
     Sale,
     StockLevel,
     StockMovement,
+    StockTransfer,
+    TransferItem,
     UserProfile,
 )
 
@@ -75,6 +77,90 @@ class StockMovementAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+class TransferItemInline(admin.TabularInline):
+    model = TransferItem
+    extra = 1
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None or obj.status == StockTransfer.DRAFT:
+            return ("quantity_received",)
+        if obj.status == StockTransfer.DISPATCHED:
+            return ("product", "quantity_sent")
+        return ("product", "quantity_sent", "quantity_received", "difference")
+
+    def has_add_permission(self, request, obj=None):
+        return obj is None or obj.status == StockTransfer.DRAFT
+
+    def has_delete_permission(self, request, obj=None):
+        return obj is None or obj.status == StockTransfer.DRAFT
+
+
+@admin.register(StockTransfer)
+class StockTransferAdmin(admin.ModelAdmin):
+    list_display = (
+        "reference",
+        "from_location",
+        "to_location",
+        "status",
+        "created_at",
+        "dispatched_at",
+        "received_at",
+    )
+    list_filter = ("status", "to_location")
+    inlines = [TransferItemInline]
+    actions = ["dispatch_selected", "receive_selected"]
+
+    def get_readonly_fields(self, request, obj=None):
+        base = (
+            "reference",
+            "status",
+            "created_by",
+            "created_at",
+            "dispatched_at",
+            "received_by",
+            "received_at",
+        )
+        if obj is not None and obj.status != StockTransfer.DRAFT:
+            return base + ("from_location", "to_location", "note")
+        return base
+
+    def has_delete_permission(self, request, obj=None):
+        return obj is not None and obj.status == StockTransfer.DRAFT
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+    @admin.action(description="Dispatch selected transfers (take stock out of the source)")
+    def dispatch_selected(self, request, queryset):
+        for transfer in queryset:
+            try:
+                transfer.dispatch(request.user)
+                self.message_user(
+                    request, f"{transfer.reference} dispatched.", messages.SUCCESS
+                )
+            except ValueError as error:
+                self.message_user(
+                    request, f"{transfer.reference}: {error}", messages.ERROR
+                )
+
+    @admin.action(description="Confirm receipt of selected transfers (add stock at the destination)")
+    def receive_selected(self, request, queryset):
+        for transfer in queryset:
+            try:
+                transfer.receive(request.user)
+                self.message_user(
+                    request,
+                    f"{transfer.reference} received: {transfer.get_status_display()}.",
+                    messages.SUCCESS,
+                )
+            except ValueError as error:
+                self.message_user(
+                    request, f"{transfer.reference}: {error}", messages.ERROR
+                )
 
 
 @admin.register(UserProfile)
