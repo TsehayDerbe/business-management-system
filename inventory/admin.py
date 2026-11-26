@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 
 from .models import (
+    DailyClosing,
     Location,
     Product,
     Region,
@@ -161,6 +162,28 @@ class StockTransferAdmin(admin.ModelAdmin):
                 self.message_user(
                     request, f"{transfer.reference}: {error}", messages.ERROR
                 )
+
+
+@admin.register(DailyClosing)
+class DailyClosingAdmin(admin.ModelAdmin):
+    list_display = (
+        "date",
+        "location",
+        "expected_cash",
+        "counted_cash",
+        "difference",
+        "closed_by",
+    )
+    list_filter = ("location", "date")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(UserProfile)

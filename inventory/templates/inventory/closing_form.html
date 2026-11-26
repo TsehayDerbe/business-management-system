@@ -1,0 +1,18 @@
+{% extends "inventory/base.html" %}
+{% block title %}Close the day{% endblock %}
+{% block content %}
+<div class="panel narrow">
+  <h2 style="margin-top:0;">Close the day</h2>
+  <p class="muted">Count the cash in the till and enter the total. The system compares it with the recorded cash sales after you submit. Once saved, a closed day cannot be changed and no new sales can be added for that shop today.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {{ field.errors }}
+    {% endfor %}
+    <button class="btn" type="submit">Close the day</button>
+  </form>
+</div>
+{% endblock %}

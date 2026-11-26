@@ -10,6 +10,8 @@
   <div class="card"><h3>Low stock items</h3><p class="{% if low_stock %}low{% endif %}">{{ low_stock|length }}</p></div>
   <div class="card"><h3>Transfers in transit</h3><p>{{ in_transit }}</p></div>
   <div class="card"><h3>Discrepancies</h3><p class="{% if discrepancies %}low{% endif %}">{{ discrepancies }}</p></div>
+  <div class="card"><h3>Shops not closed today</h3><p class="{% if not_closed %}low{% endif %}">{{ not_closed }}</p></div>
+  <div class="card"><h3>Cash shortages today</h3><p class="{% if cash_shortages %}low{% endif %}">{{ cash_shortages }}</p></div>
 </div>
 
 {% if is_head_office %}

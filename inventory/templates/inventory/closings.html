@@ -1,0 +1,72 @@
+{% extends "inventory/base.html" %}
+{% block title %}Cash closing{% endblock %}
+{% block content %}
+<div class="panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+    <h2 style="margin:0;">Daily cash closing</h2>
+    {% if can_record_sales %}
+      <a class="btn" style="margin-top:0;" href="{% url 'closing_create' %}">Close the day</a>
+    {% endif %}
+  </div>
+  {% if unclosed %}
+  <p class="muted" style="margin-bottom:0;">Not closed yet today:
+    {% for shop in unclosed %}{{ shop.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <form method="get" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+    <div>
+      <label for="start">From</label>
+      <input type="date" id="start" name="start" value="{{ start|date:'Y-m-d' }}"
+             style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;">
+    </div>
+    <div>
+      <label for="end">To</label>
+      <input type="date" id="end" name="end" value="{{ end|date:'Y-m-d' }}"
+             style="padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;">
+    </div>
+    <div>
+      <label for="location">Shop</label>
+      <select id="location" name="location" style="padding:10px;">
+        <option value="">All shops</option>
+        {% for loc in locations %}
+          <option value="{{ loc.pk }}" {% if selected == loc.pk|stringformat:"s" %}selected{% endif %}>{{ loc.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn" type="submit" style="margin-top:0;">Apply</button>
+  </form>
+</div>
+
+<div class="cards">
+  <div class="card"><h3>Expected (ETB)</h3><p>{{ totals.expected|default_if_none:0|floatformat:2 }}</p></div>
+  <div class="card"><h3>Counted (ETB)</h3><p>{{ totals.counted|default_if_none:0|floatformat:2 }}</p></div>
+  <div class="card"><h3>Net difference</h3><p class="{% if totals.net and totals.net < 0 %}low{% endif %}">{{ totals.net|default_if_none:0|floatformat:2 }}</p></div>
+  <div class="card"><h3>Total shortages</h3><p class="{% if shortage_total %}low{% endif %}">{{ shortage_total|floatformat:2 }}</p></div>
+</div>
+
+<div class="panel">
+  <table>
+    <tr>
+      <th>Date</th><th>Shop</th><th>City</th><th>Expected</th><th>Counted</th>
+      <th>Difference</th><th>Note</th><th>Closed by</th>
+    </tr>
+    {% for c in closings %}
+    <tr>
+      <td>{{ c.date|date:"Y-m-d" }}</td>
+      <td>{{ c.location.name }}</td>
+      <td>{{ c.location.city }}</td>
+      <td>{{ c.expected_cash }}</td>
+      <td>{{ c.counted_cash }}</td>
+      <td class="{% if c.difference < 0 %}low{% endif %}">{{ c.difference }}</td>
+      <td>{{ c.note|default:"-" }}</td>
+      <td>{{ c.closed_by.username|default:"-" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="8">No closings in this period.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

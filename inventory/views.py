@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from .forms import ProductForm, SaleForm
 from .invoices import build_invoice_pdf
-from .models import Location, Product, Sale, StockLevel, StockTransfer
+from .models import DailyClosing, Location, Product, Sale, StockLevel, StockTransfer
 from .permissions import (
     head_office_required,
     is_head_office,
@@ -44,6 +44,11 @@ def dashboard(request):
     in_transit = transfers.filter(status=StockTransfer.DISPATCHED).count()
     discrepancies = transfers.filter(status=StockTransfer.DISCREPANCY).count()
 
+    shops = locations.filter(kind=Location.SHOP)
+    closed_today = DailyClosing.objects.filter(location__in=shops, date=today)
+    not_closed = shops.count() - closed_today.count()
+    cash_shortages = closed_today.filter(difference__lt=0).count()
+
     shop_rows = []
     if is_head_office(user):
         scope = "All shops (head office view)"
@@ -67,6 +72,8 @@ def dashboard(request):
         "low_stock": low_stock,
         "in_transit": in_transit,
         "discrepancies": discrepancies,
+        "not_closed": not_closed,
+        "cash_shortages": cash_shortages,
         "shop_rows": shop_rows,
     }
     return render(request, "inventory/dashboard.html", context)

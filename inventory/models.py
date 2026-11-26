@@ -1,7 +1,10 @@
-from django.utils import timezone
+from decimal import Decimal
+
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.db.models import Sum
+from django.utils import timezone
 
 
 class Region(models.Model):
@@ -198,8 +201,19 @@ class Sale(models.Model):
     sold_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     sold_at = models.DateTimeField(auto_now_add=True)
 
+    CLOSED_MESSAGE = (
+        "Today's cash for this shop is already closed. New sales can't be added."
+    )
+
+    def day_is_closed(self):
+        return DailyClosing.objects.filter(
+            location=self.location, date=timezone.localdate()
+        ).exists()
+
     def clean(self):
         if not self.pk and self.product_id and self.location_id and self.quantity:
+            if self.day_is_closed():
+                raise ValidationError(self.CLOSED_MESSAGE)
             available = (
                 StockLevel.objects.filter(product=self.product, location=self.location)
                 .values_list("quantity", flat=True)
@@ -215,6 +229,8 @@ class Sale(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             return super().save(*args, **kwargs)
+        if self.day_is_closed():
+            raise ValueError(self.CLOSED_MESSAGE)
         self.total_price = self.product.price * self.quantity
         super().save(*args, **kwargs)
         apply_stock_change(
@@ -228,7 +244,7 @@ class Sale(models.Model):
 
     def __str__(self):
         return f"{self.quantity} x {self.product.name} @ {self.location.name}"
-    
+
 
 class StockTransfer(models.Model):
     DRAFT = "DRAFT"
@@ -348,3 +364,46 @@ class TransferItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name}: {self.quantity_sent}"
+
+
+class DailyClosing(models.Model):
+    location = models.ForeignKey(
+        Location, on_delete=models.PROTECT, related_name="closings"
+    )
+    date = models.DateField()
+    expected_cash = models.DecimalField(
+        max_digits=12, decimal_places=2, editable=False
+    )
+    counted_cash = models.DecimalField(max_digits=12, decimal_places=2)
+    difference = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        editable=False,
+        help_text="Counted minus expected. Negative means cash is missing.",
+    )
+    note = models.CharField(max_length=255, blank=True)
+    closed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    closed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("location", "date")
+        ordering = ["-date", "location__name"]
+
+    @staticmethod
+    def cash_sales_total(location, day):
+        total = Sale.objects.filter(
+            location=location, payment_method=Sale.CASH, sold_at__date=day
+        ).aggregate(total=Sum("total_price"))["total"]
+        return total or Decimal("0")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValueError("A closed day cannot be changed.")
+        self.expected_cash = self.cash_sales_total(self.location, self.date)
+        self.difference = self.counted_cash - self.expected_cash
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.location.name} {self.date}: {self.difference:+}"
